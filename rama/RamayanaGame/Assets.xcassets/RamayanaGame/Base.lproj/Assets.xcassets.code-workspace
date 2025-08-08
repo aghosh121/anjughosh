@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../AppIcon.appiconset"
+		},
+		{
+			"path": "../../AccentColor.colorset"
+		},
+		{
+			"path": "../../../Base.lproj"
+		},
+		{
+			"path": "../../../../RamayanaGame.xcodeproj"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}
