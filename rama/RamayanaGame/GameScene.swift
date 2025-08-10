@@ -39,6 +39,10 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         setupPlayer()
         setupLevel()
         setupControls()
+        
+        // Enable keyboard input for macOS
+        view.window?.makeFirstResponder(self)
+        view.window?.acceptsKeyboardInput = true
     }
     
     private func setupPhysics() {
@@ -85,7 +89,16 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     private func addParticleEffect(color: UIColor, position: CGPoint) {
         let emitter = SKEmitterNode()
-        emitter.particleTexture = SKTexture(imageNamed: "spark")
+        // Create a simple particle texture since "spark" image doesn't exist
+        let particleSize = CGSize(width: 4, height: 4)
+        let renderer = UIGraphicsImageRenderer(size: particleSize)
+        let particleImage = renderer.image { context in
+            let rect = CGRect(origin: .zero, size: particleSize)
+            let path = UIBezierPath(ovalIn: rect)
+            UIColor.white.setFill()
+            path.fill()
+        }
+        emitter.particleTexture = SKTexture(image: particleImage)
         emitter.position = position
         emitter.particleBirthRate = 10
         emitter.particleLifetime = 4.0
@@ -148,7 +161,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     private func setupPlayer() {
         player = Player()
-        player.position = CGPoint(x: size.width/2, y: 100)
+        player.position = CGPoint(x: size.width/2, y: 80)
         player.zPosition = 5
         addChild(player)
     }
@@ -193,9 +206,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         for _ in 0..<count {
             let enemy = Enemy(type: type)
             let randomX = CGFloat.random(in: 50...(size.width - 50))
-            let randomY = CGFloat.random(in: (size.height * 0.6)...(size.height - 100))
+            let randomY = CGFloat.random(in: 220...280)
             enemy.position = CGPoint(x: randomX, y: randomY)
             enemy.zPosition = 3
+            
+            // Flip the demon horizontally so it faces the opposite direction
+            enemy.xScale = -1.0
+            
             enemies.append(enemy)
             addChild(enemy)
         }
@@ -214,7 +231,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     private func setupControls() {
-        // Touch controls will be handled in touchesBegan
+        // Keyboard controls will be handled in keyDown
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -226,20 +243,106 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             togglePause()
             return
         }
+    }
+    
+    // MARK: - Keyboard Controls
+    
+    override func keyDown(with event: NSEvent) {
+        guard !gamePaused else { return }
         
-        // Move player to touch location
-        if !gamePaused {
-            movePlayer(to: location)
+        let keyCode = event.keyCode
+        print("Key pressed: \(keyCode)") // Debug print
+        
+        switch keyCode {
+        case 123: // Left arrow
+            print("Left arrow pressed")
+            movePlayer(direction: .left)
+        case 124: // Right arrow
+            print("Right arrow pressed")
+            movePlayer(direction: .right)
+        case 125: // Down arrow
+            print("Down arrow pressed")
+            movePlayer(direction: .down)
+        case 126: // Up arrow
+            print("Up arrow pressed")
+            movePlayer(direction: .up)
+        case 49: // Spacebar
+            print("Spacebar pressed")
+            shootProjectile()
+        default:
+            print("Other key pressed: \(keyCode)")
+            break
         }
     }
     
-    private func movePlayer(to location: CGPoint) {
-        let moveAction = SKAction.move(to: location, duration: 0.5)
+    private enum MoveDirection {
+        case left, right, up, down
+    }
+    
+    private func movePlayer(direction: MoveDirection) {
+        let moveDistance: CGFloat = 50
+        var newPosition = player.position
+        
+        switch direction {
+        case .left:
+            newPosition.x -= moveDistance
+        case .right:
+            newPosition.x += moveDistance
+        case .up:
+            newPosition.y += moveDistance
+        case .down:
+            newPosition.y -= moveDistance
+        }
+        
+        // Keep player within screen bounds
+        newPosition.x = max(50, min(size.width - 50, newPosition.x))
+        newPosition.y = max(50, min(size.height - 50, newPosition.y))
+        
+        let moveAction = SKAction.move(to: newPosition, duration: 0.2)
         moveAction.timingMode = .easeOut
         player.run(moveAction)
         
-        // Player shoots automatically when moving
-        shootProjectile()
+        // Move background in opposite direction for parallax effect
+        moveBackground(direction: direction)
+    }
+    
+    private func moveBackground(direction: MoveDirection) {
+        let moveDistance: CGFloat = 20
+        var newBackgroundPosition = backgroundNode.position
+        
+        switch direction {
+        case .left:
+            newBackgroundPosition.x += moveDistance
+        case .right:
+            newBackgroundPosition.x -= moveDistance
+        case .up:
+            newBackgroundPosition.y -= moveDistance
+        case .down:
+            newBackgroundPosition.y += moveDistance
+        }
+        
+        let moveAction = SKAction.move(to: newBackgroundPosition, duration: 0.2)
+        moveAction.timingMode = .easeOut
+        backgroundNode.run(moveAction)
+    }
+    
+    // MARK: - macOS Keyboard Support
+    
+    override var acceptsFirstResponder: Bool {
+        return true
+    }
+    
+    override func becomeFirstResponder() -> Bool {
+        return true
+    }
+    
+    // Additional keyboard input methods for better macOS support
+    override func keyUp(with event: NSEvent) {
+        // Handle key release if needed
+    }
+    
+    override func flagsChanged(with event: NSEvent) {
+        // Handle modifier keys if needed
     }
     
     private func shootProjectile() {
@@ -256,8 +359,8 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         addChild(projectile)
         
-        // Move projectile upward
-        let moveAction = SKAction.moveBy(x: 0, y: size.height, duration: 1.0)
+        // Move projectile upward with more range to reach elevated demons
+        let moveAction = SKAction.moveBy(x: 0, y: size.height * 1.5, duration: 1.5)
         let removeAction = SKAction.removeFromParent()
         projectile.run(SKAction.sequence([moveAction, removeAction]))
     }
@@ -312,7 +415,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let projectile = contact.bodyA.categoryBitMask == projectileCategory ? contact.bodyA.node : contact.bodyB.node
         
         if let enemy = enemy as? Enemy {
-            enemy.takeDamage(25)
+            enemy.takeDamage(35)
             
             if enemy.health <= 0 {
                 // Enemy defeated

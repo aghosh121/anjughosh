@@ -1,8 +1,8 @@
-import UIKit
+import AppKit
 import SpriteKit
 import GameplayKit
 
-class GameViewController: UIViewController {
+class GameViewController: NSViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -23,14 +23,20 @@ class GameViewController: UIViewController {
             
             // Enable high performance
             view.preferredFramesPerSecond = 60
+            
+            // Enable keyboard input for macOS
+            view.window?.makeFirstResponder(scene)
         }
     }
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        return .portrait
-    }
-
-    override var prefersStatusBarHidden: Bool {
-        return true
+    // macOS-specific view controller methods
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        
+        // Ensure the scene can receive keyboard input
+        if let view = self.view as? SKView,
+           let scene = view.scene {
+            view.window?.makeFirstResponder(scene)
+        }
     }
 }

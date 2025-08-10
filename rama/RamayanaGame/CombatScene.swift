@@ -1,9 +1,9 @@
 import SpriteKit
-import UIKit
+import AppKit
 
 class CombatScene: SKScene {
     
-    private var ramaNode: SKSpriteNode!
+    private var ramaNode: Player!
     private var demonNode: SKSpriteNode!
     private var backgroundNode: SKSpriteNode!
     private var healthBarNode: SKSpriteNode!
@@ -19,6 +19,90 @@ class CombatScene: SKScene {
         setupScene()
         setupUI()
         startCombat()
+        
+        // Enable keyboard input for macOS
+        print("Setting up keyboard input...")
+        view.window?.makeFirstResponder(self)
+        
+        // Additional keyboard setup
+        DispatchQueue.main.async {
+            self.view?.window?.makeFirstResponder(self)
+            print("Keyboard focus set to scene")
+            
+            // Force keyboard focus
+            self.view?.window?.makeFirstResponder(self)
+            print("Forced keyboard focus to scene")
+        }
+    }
+    
+    // Override to ensure scene can receive keyboard events
+    override func sceneDidLoad() {
+        super.sceneDidLoad()
+        print("Scene loaded - ready for keyboard input")
+    }
+    
+    // Ensure scene can receive keyboard input when it becomes active
+    override func didBecomeActive() {
+        super.didBecomeActive()
+        print("Scene became active - setting keyboard focus")
+        view?.window?.makeFirstResponder(self)
+    }
+    
+
+    
+
+    
+    // Force keyboard input to work - try this method
+    override func keyDown(with event: NSEvent) {
+        print("=== FORCED KEYBOARD METHOD ===")
+        let keyCode = event.keyCode
+        print("FORCED - Key pressed: \(keyCode)")
+        
+        // ANY key should move Rama
+        if keyCode == 123 { // Left
+            print("LEFT ARROW - Moving left")
+            moveRama(direction: .left)
+        } else if keyCode == 124 { // Right
+            print("RIGHT ARROW - Moving right")
+            moveRama(direction: .right)
+        } else if keyCode == 125 { // Down
+            print("DOWN ARROW - Moving down")
+            moveRama(direction: .down)
+        } else if keyCode == 126 { // Up
+            print("UP ARROW - Moving up")
+            moveRama(direction: .up)
+        } else if keyCode == 49 { // Spacebar
+            print("SPACEBAR - Shooting")
+            createSpecialArrow()
+        } else {
+            print("OTHER KEY - Testing movement")
+            moveRama(direction: .right)
+        }
+    }
+    
+
+    
+    // Test if scene is receiving any events at all
+    override func mouseDown(with event: NSEvent) {
+        print("=== MOUSE EVENT DETECTED ===")
+        print("Mouse clicked at: \(event.location(in: self))")
+        
+        // Test movement with mouse click
+        print("Testing movement with mouse click...")
+        moveRama(direction: .up)
+        
+        // Now handle the original mouse logic
+        let location = event.location(in: self)
+        
+        // Check if click is on Rama (special attack)
+        if ramaNode.contains(location) {
+            performSpecialAttack()
+        }
+        
+        // Check if click is on demon (direct attack)
+        if demonNode.contains(location) {
+            performDirectAttack()
+        }
     }
     
     private func setupScene() {
@@ -28,12 +112,40 @@ class CombatScene: SKScene {
         backgroundNode.zPosition = -10
         addChild(backgroundNode)
         
-        // Create Lord Rama sprite
-        ramaNode = SKSpriteNode(imageNamed: "rama")
+        // Create Lord Rama sprite using Player class for animations
+        print("About to create Player instance...")
+        
+        // Test if Player class exists
+        if let playerClass = NSClassFromString("RamayanaGame.Player") {
+            print("✅ Player class found: \(playerClass)")
+            ramaNode = Player()
+            print("✅ Player instance created successfully")
+        } else {
+            print("❌ Player class not found, using fallback SKSpriteNode")
+            ramaNode = SKSpriteNode(imageNamed: "rama")
+        }
+        
         ramaNode.position = CGPoint(x: size.width * 0.3, y: size.height * 0.4)
         ramaNode.zPosition = 10
         ramaNode.setScale(0.8)
         addChild(ramaNode)
+        
+        print("✅ Rama node created and added to scene")
+        
+        // Test if animation is working
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            print("Testing animation after 1 second...")
+            if let player = self.ramaNode as? Player {
+                print("Player type confirmed, testing animation...")
+                // Force a test animation
+                let testMove = SKAction.moveBy(x: 10, y: 0, duration: 0.5)
+                player.run(testMove)
+                print("Test animation applied")
+            } else {
+                print("❌ ramaNode is not a Player type!")
+                print("ramaNode type: \(type(of: self.ramaNode))")
+            }
+        }
         
         // Create demon sprite
         demonNode = SKSpriteNode(imageNamed: "demon")
@@ -259,16 +371,17 @@ class CombatScene: SKScene {
         }
     }
     
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        let location = touch.location(in: self)
+    // MOUSE CONTROLS - Only for special attacks, NOT for movement
+    // Use ARROW KEYS to move Rama around the screen
+    override func mouseDown(with event: NSEvent) {
+        let location = event.location(in: self)
         
-        // Check if touch is on Rama (special attack)
+        // Check if click is on Rama (special attack)
         if ramaNode.contains(location) {
             performSpecialAttack()
         }
         
-        // Check if touch is on demon (direct attack)
+        // Check if click is on demon (direct attack)
         if demonNode.contains(location) {
             performDirectAttack()
         }
@@ -335,6 +448,85 @@ class CombatScene: SKScene {
         } else if demonHealth <= 0 {
             gameOver(won: true)
         }
+    }
+    
+
+    
+    private enum MoveDirection {
+        case left, right, up, down
+    }
+    
+    private func moveRama(direction: MoveDirection) {
+        let moveDistance: CGFloat = 30
+        var newPosition = ramaNode.position
+        
+        switch direction {
+        case .left:
+            newPosition.x -= moveDistance
+        case .right:
+            newPosition.x += moveDistance
+        case .up:
+            newPosition.y += moveDistance
+        case .down:
+            newPosition.y -= moveDistance
+        }
+        
+        // Keep Rama within screen bounds
+        newPosition.x = max(50, min(size.width - 50, newPosition.x))
+        newPosition.y = max(50, min(size.height - 50, newPosition.y))
+        
+        let moveAction = SKAction.move(to: newPosition, duration: 0.2)
+        moveAction.timingMode = .easeOut
+        ramaNode.run(moveAction)
+        
+        // Flip Rama sprite based on direction
+        ramaNode.flipSprite(direction: direction)
+        
+        // Move background in opposite direction for parallax effect
+        moveBackground(direction: direction)
+    }
+    
+    private func moveBackground(direction: MoveDirection) {
+        let moveDistance: CGFloat = 15
+        var newBackgroundPosition = backgroundNode.position
+        
+        switch direction {
+        case .left:
+            newBackgroundPosition.x += moveDistance
+        case .right:
+            newBackgroundPosition.x -= moveDistance
+        case .up:
+            newBackgroundPosition.y -= moveDistance
+        case .down:
+            newBackgroundPosition.y += moveDistance
+        }
+        
+        let moveAction = SKAction.move(to: newBackgroundPosition, duration: 0.2)
+        moveAction.timingMode = .easeOut
+        backgroundNode.run(moveAction)
+    }
+    
+    // MARK: - macOS Keyboard Support
+    
+    override var acceptsFirstResponder: Bool {
+        print("Scene accepts first responder")
+        return true
+    }
+    
+    override func becomeFirstResponder() -> Bool {
+        print("Scene became first responder")
+        return true
+    }
+    
+
+    
+    // Additional keyboard support methods
+    override func keyUp(with event: NSEvent) {
+        print("Key released: \(event.keyCode)")
+    }
+    
+    override func flagsChanged(with event: NSEvent) {
+        print("Modifier keys changed")
     }
     
     private func gameOver(won: Bool) {

@@ -116,15 +116,15 @@ class Enemy: SKSpriteNode {
     private func getEnemySize(for type: EnemyType) -> CGSize {
         switch type {
         case .basic:
-            return CGSize(width: 30, height: 30)
+            return CGSize(width: 6, height: 6)
         case .forest:
-            return CGSize(width: 35, height: 35)
+            return CGSize(width: 8, height: 8)
         case .boss:
-            return CGSize(width: 60, height: 60)
+            return CGSize(width: 12, height: 12)
         case .rakshasa:
-            return CGSize(width: 40, height: 40)
+            return CGSize(width: 7, height: 7)
         case .golden:
-            return CGSize(width: 45, height: 45)
+            return CGSize(width: 9, height: 9)
         }
     }
     
